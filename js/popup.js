@@ -211,13 +211,5 @@ var seedshop = new Popup({
     ]
   });
 
-  canvas.addEventListener('touch', e => {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-  
-    popupManager.handleClick(x, y);
-  });
-
 popupManager.open(seedshop);
 // popupManager.close(seedshop);

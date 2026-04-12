@@ -421,3 +421,13 @@ canvas.addEventListener('click', e => {
 
   popupManager.handleClick(x, y);
 });
+
+canvas.addEventListener('touchstart', e => {
+  var t = e.touches[0];
+
+  const rect = canvas.getBoundingClientRect();
+  const x = t.clientX - rect.left;
+  const y = t.clientY - rect.top;
+  console.log('a');
+  popupManager.handleClick(x, y);
+});
