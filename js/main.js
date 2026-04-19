@@ -24,6 +24,8 @@ load("sweed_8", "./ziem_plants/sweed_8.png");
 
 for (let i = 0; i <= 4; i++) load("water_"+i, `./ziem_plants/water_${i}.png`);
 
+for (let i = 0; i <= 9; i++) load(`number_${i}`, `./numbers/${i}.png`);
+
 
 class PlayerInventory {
   constructor(){
@@ -176,6 +178,20 @@ class WeedTile extends Tile {
     else sprite = SPRITES["weed_"+this.level];
   
     this.draw(ctx, sprite);
+
+    let numer_sprite = SPRITES[`number_${this.level + 1}`];
+    
+    const px = this.px + TILE_SIZE * 0.8;
+    const py = this.py + TILE_SIZE * 0.8;
+  
+    const size = TILE_SIZE * 0.16;
+  
+    ctx.fillStyle = '#121212';
+    ctx.fillRect(px - 3, py - 3, size + 6, size + 6);
+    ctx.fillStyle = '#fafafa';
+    if (map) ctx.fillStyle = map.getWaterBoost(this) > map.globalBoost ? "#6495ED" : '#fafafa';
+    ctx.fillRect(px - 2, py - 2, size + 4, size + 4);
+    ctx.drawImage(numer_sprite, px + 1, py + 1, size - 2, size - 2);
   }
 }
 
@@ -197,7 +213,58 @@ class WaterTile extends Tile {
 
   canMerge = other => {
     console.log("CAN MERGE?");
-    var can = other instanceof WaterTile && this.level < 4 && other.level < 4;
+    var can = other instanceof WaterTile && this.level < 4 && other.level < 4 && !(this.x == other.x && this.y == other.y);
+    console.log(can);
+    return can;
+  };
+
+  merge(){
+    console.log(this.level);
+    var water = new WaterTile(this.x, this.y);
+    water.level = Math.min(4, this.level + 1);
+    map.set(this.x, this.y, water);
+    console.log(water.level);
+
+    setTimeout(()=>this.targetScale=1,100);
+  }
+
+  render(ctx){
+    this.draw(ctx, SPRITES["water_"+this.level]);
+
+    let numer_sprite = SPRITES[`number_${this.level + 1}`];
+    
+    const px = this.px + TILE_SIZE * 0.8;
+    const py = this.py + TILE_SIZE * 0.8;
+  
+    const size = TILE_SIZE * 0.16;
+  
+    ctx.fillStyle = '#121212';
+    ctx.fillRect(px - 3, py - 3, size + 6, size + 6);
+    ctx.fillStyle = '#fafafa';
+    ctx.fillRect(px - 2, py - 2, size + 4, size + 4);
+    ctx.drawImage(numer_sprite, px + 1, py + 1, size - 2, size - 2);
+  }
+}
+
+// ===== SCISSORS =====
+class TrimmerTile extends Tile {
+  constructor(x,y){
+    super(x,y);
+    this.level=0;
+  }
+
+  getBoost(){
+    if(this.level<=3) return (this.level+1)*0.25;
+    return 0;
+  }
+
+  isGlobal(){
+    return this.level===4;
+  }
+
+  canMerge = other => {
+    console.log("CAN MERGE?");
+    var can = other instanceof WaterTile && this.level < 4 && other.level < 4 && !(this.x == other.x && this.y == other.y);
     console.log(can);
     return can;
   };
@@ -249,7 +316,11 @@ class GameMap {
       this.get(t.x+1,t.y),
       this.get(t.x-1,t.y),
       this.get(t.x,t.y+1),
-      this.get(t.x,t.y-1)
+      this.get(t.x,t.y-1),
+      this.get(t.x-1,t.y+1),
+      this.get(t.x+1,t.y+1),
+      this.get(t.x-1,t.y-1),
+      this.get(t.x+1,t.y-1)
     ].filter(Boolean);
   }
 
