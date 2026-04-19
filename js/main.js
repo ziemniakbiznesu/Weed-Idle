@@ -1,3 +1,5 @@
+const AUTO_HARVEST = true;
+
 
 // ===== CONFIG =====
 const GRID_SIZE = 6;
@@ -107,8 +109,9 @@ class WeedTile extends Tile {
       this.stage = "growing";
       this.growth = 0;
     }
-  
-    if(this.stage === "growing" && this.growth > 2 + this.level){
+
+    if(this.stage === "growing" && this.growth > this.level){  
+    // if(this.stage === "growing" && this.growth > 2 + this.level){
       this.level = Math.min(8, this.level + 1);
       this.growth = 0;
     }
@@ -116,28 +119,46 @@ class WeedTile extends Tile {
     // --- Sweed logic after normal growth ---
     if(boost > map.globalBoost && this.level >= 7 && !this.special && !this.sweedActivated){
       this.level = Math.max(this.level, 7);
-      this.special = true;
+      this.special = Math.floor(Math.random() * 10) == 1;
       this.sweedActivated = true;
       this.targetScale = 1.4;
       setTimeout(()=> this.targetScale=1,150);
       console.log('Sweed appeared at:', this.x, this.y);
     }
+
+    if (AUTO_HARVEST && this.level == 8) {
+      this.update = () => {};
+
+      setTimeout(() => {
+        this.harvest(this);
+      }, 4200);
+    }
   }
 
-  canMerge(other){
-    return other instanceof WeedTile &&
-      this.level>=7 && other.level>=7;
+  /**
+   * @param {WeedTile} other 
+   */
+  harvest(other) {
+    if (this.x != other.x 
+      || this.y != other.y
+      || this.level != 8
+      ) return;
+
+    money += 21 * (this.special ? 2 : 1);
+    
+    map.set(this.x, this.y, new WeedTile(this.x, this.y));
+    map.dragged = null;
+
+    console.log(`Money: ${money}`);
   }
 
-  merge(){
-    const r=Math.random();
+  // canMerge = other => other instanceof WaterTile && this.level < 4 && other.level < 4;
 
-    if(r<0.1){this.level=8; this.special=true;}
-    else if(r<0.3){this.level=7; this.special=true;}
+  // merge(){
+  //   if (this instanceof WaterTile) this.level = Math.min(4, this.level);
 
-    this.targetScale=1.4;
-    setTimeout(()=>this.targetScale=1,100);
-  }
+  //   setTimeout(()=>this.targetScale=1,100);
+  // }
 
   render(ctx, map){
     if (map) {
@@ -172,6 +193,23 @@ class WaterTile extends Tile {
 
   isGlobal(){
     return this.level===4;
+  }
+
+  canMerge = other => {
+    console.log("CAN MERGE?");
+    var can = other instanceof WaterTile && this.level < 4 && other.level < 4;
+    console.log(can);
+    return can;
+  };
+
+  merge(){
+    console.log(this.level);
+    var water = new WaterTile(this.x, this.y);
+    water.level = Math.min(4, this.level + 1);
+    map.set(this.x, this.y, water);
+    console.log(water.level);
+
+    setTimeout(()=>this.targetScale=1,100);
   }
 
   render(ctx){
@@ -303,25 +341,21 @@ class GameMap {
     }
 
     // ===== WEED + WEED => CASH =====
-    if(d instanceof WeedTile && d.level == 8 && target instanceof WeedTile && target.level == 8){
+    if (target instanceof WeedTile && d instanceof WeedTile) target.harvest(d);
 
-      if (d.special && target.special) {
-        money += 42;
-        this.set(target.x, target.y, new WeedTile(target.x, target.y));
+    // ===== WATER + WATER => UPGRADE ===== 
+    if (target instanceof WaterTile && d instanceof WaterTile) {
+      if (target.canMerge(d)) {
+        console.log(d)
+        this.set(d.x, d.y, new EmptyTile(d.x, d.y));
+        target.merge(d);
         this.dragged = null;
-      }
-
-      if (!d.special && !target.special) {
-        money += 24;
-        this.set(target.x, target.y, new WeedTile(target.x, target.y));
-        this.dragged = null;
-      }
-
-      console.log(`Money: ${money}`);
-      
-      return;
-    }
   
+        return;
+      }
+    }
+    
+
     // ===== WATER SWAP =====
     const dx = d.x, dy = d.y;
     const tx = target.x, ty = target.y;
@@ -359,9 +393,12 @@ const ctx=canvas.getContext("2d");
 const map=new GameMap(GRID_SIZE);
 
 // test
-map.set(1,1,new WeedTile(1,1));
-map.set(2,1,new WeedTile(2,1));
-map.set(0,0,new WaterTile(0,0));
+map.set(1, 4, new WeedTile(1, 4));
+map.set(4, 1, new WeedTile(4, 1));
+map.set(0, 0, new WaterTile(0, 0));
+map.set(5, 5, new WaterTile(5, 5));
+map.set(2, 2, new WaterTile(2, 2));
+map.set(3, 3, new WaterTile(3, 3));
 
 // ===== LOOP =====
 let last=0;
@@ -372,9 +409,15 @@ function loop(t){
   last=t;
 
   map.update(dt);
+  popupManager.update(ctx);
+  
   map.render(ctx);
   popupManager.draw(ctx);
 
+  document.querySelectorAll('.money-ui').forEach(x => x.innerText = money);
+  document.querySelectorAll('.seeds-ui').forEach(x => x.innerText = playerInventory.seeds);
+
+  
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

@@ -11,3 +11,8 @@ body {
   overflow: hidden;
   user-select: none;
 }
+
+canvas {
+  position: fixed;
+  top: 50px;
+}

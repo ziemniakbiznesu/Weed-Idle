@@ -176,6 +176,14 @@ class SeedShopPopup extends Popup {
     open(popup) {
       this.popups.push(popup);
     }
+
+    update(dt) {
+      this.popups.forEach(p => p.update());
+
+      for (let i = this.popups.length - 1; i >= 0; i--) {
+        if (this.popups[i].isDead()) this.popups.splice(i, 1);
+      }
+    }
   
     draw(ctx) {
         // console.log(this.popups)
@@ -193,23 +201,84 @@ class SeedShopPopup extends Popup {
     }
   }
 
+  class MoneyPopup {
+    constructor(x, y, amountText) {
+      this.x = x;
+      this.y = y;
+      this.text = amountText;
+  
+      this.life = 0;
+      this.maxLife = 60; // ~1 sekunda przy 60fps
+  
+      this.size = 40; // moneta <=100px
+    }
+  
+    update(dt) {
+      this.life++;
+      this.y -= 0.5; // leci do góry
+    }
+  
+    draw(ctx) {
+      const progress = this.life / this.maxLife;
+  
+      // easing (ładniejsze)
+      const scale = 1 + 0.3 * (1 - progress);
+      const alpha = 1 - progress;
+  
+      ctx.save();
+      ctx.globalAlpha = alpha;
+  
+      // ==== MONETA ====
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, (this.size / 2) * scale, 0, Math.PI * 2);
+      ctx.fillStyle = "#FFD700";
+      ctx.fill();
+  
+      // połysk
+      ctx.beginPath();
+      ctx.arc(this.x - 5, this.y - 5, (this.size / 4) * scale, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.3)";
+      ctx.fill();
+  
+      // ==== TEKST ====
+      ctx.fillStyle = "#fff";
+      ctx.font = `${14 * scale}px Arial`;
+      ctx.textAlign = "center";
+      ctx.fillText(this.text, this.x, this.y - this.size);
+  
+      ctx.restore();
+    }
+  
+    isDead() {
+      return this.life >= this.maxLife;
+    }
+
+    isInside() {
+      return false;
+    }
+  }
+
 // document.querySelector('canvas').addEventListener("click", (e) => {
 //   });
-
   const popupManager = new PopupManager();
 
 // otwierasz sklep
-var seedshop = new Popup({
-    title: "Sklep z nasionami",
-    width: 400,
-    height: 300,
+// var seedshop = new Popup({
+//     title: "Sklep z nasionami",
+//     width: 400,
+//     height: 300,
   
-    content: (popup) => [
-      new Button("🌱 Nasiono - ", () => {
-        console.log("Kupiono marchew");
-      })
-    ]
-  });
+//     content: (popup) => [
+//       new Button("🌱 Nasiono - ", () => {
+//         console.log("Kupiono marchew");
+//       })
+//     ]
+//   });
 
-popupManager.open(seedshop);
+function addMoneyPopup(x, y, amount) {
+  popupManager.popups.push(new MoneyPopup(x, y, `+${amount}$`));
+}
+
+
+// popupManager.open(seedshop);
 // popupManager.close(seedshop);
