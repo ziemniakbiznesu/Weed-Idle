@@ -1,5 +1,7 @@
 const AUTO_HARVEST = true;
 
+var soundManager = new SoundManager();
+soundManager.load('earn', './media/sounds/ean.mp3');
 
 // ===== CONFIG =====
 const GRID_SIZE = 6;
@@ -31,7 +33,7 @@ for (let i = 0; i <= 9; i++) load(`number_${i}`, `./numbers/${i}.png`);
 
 class PlayerInventory {
   constructor(){
-    this.seeds = 100;  // np. startowa ilość nasion
+    this.seeds = 1;  // np. startowa ilość nasion
   }
 
   useSeed(){
@@ -109,7 +111,7 @@ class WeedTile extends Tile {
   
     // --- Growth ALWAYS ---
     let boost = map.getWaterBoost(this);
-    this.growth += dt * boost;
+    this.growth += dt * boost * (Math.floor(Math.random() * 100) / 100 + 0.5);
 
     if (Math.floor(Math.random() * 4200 * this.level ** 0.42 * boost ** 0.42) == 1) {
       // map.set(this.x, this.y, new EmptyTile(this.x, this.y));
@@ -157,9 +159,14 @@ class WeedTile extends Tile {
       
     this.harvested = true;
     money += 21 * (this.special ? 2 : 1);
-    
+
+    // clickSound.currentTime = 0;
+    soundManager.play('earn');
+
     map.set(this.x, this.y, new WeedTile(this.x, this.y));
-    map.dragged = null;
+    if (map.dragged == this) {
+      map.dragged = null;
+    }
 
     console.log(`Money: ${money}`);
   }
@@ -231,7 +238,7 @@ class WeedTile extends Tile {
 class WaterTile extends Tile {
   constructor(x, y){
     super(x, y);
-    this.level = 4;
+    this.level = 0;
   }
 
   getBoost() {
@@ -447,11 +454,13 @@ class GameMap {
 
     // ===== WEED + WEED => CASH =====
     if (target instanceof WeedTile && d instanceof WeedTile) target.harvest(d);
+
+    // ===== DEAD + DEAD => EMPTY =====
     if (target instanceof WeedTile && d instanceof WeedTile) {
       if (target.x == d.x && target.y == d.y && target.isDead) {
-        playerInventory.seeds += 1;
+        playerInventory.seeds += 2;
         money += 1;
-        map.set(target.x, target.y, new EmptyTile(target.x, target.y));
+        map.set(target.x, target.y, new WaterTile(target.x, target.y));
       }
     }
 
@@ -502,13 +511,13 @@ const ctx=canvas.getContext("2d");
 const map = new GameMap(GRID_SIZE);
 
 // test
-map.set(0, 0, new WeedTile(0, 0));
-map.set(1, 4, new WeedTile(1, 4));
-map.set(4, 1, new WeedTile(4, 1));
-map.set(0, 0, new WaterTile(0, 0));
-map.set(5, 5, new WaterTile(5, 5));
-map.set(2, 2, new WaterTile(2, 2));
-map.set(3, 3, new WaterTile(3, 3));
+// map.set(0, 0, new WeedTile(0, 0));
+// map.set(1, 4, new WeedTile(1, 4));
+// map.set(4, 1, new WeedTile(4, 1));
+// map.set(0, 0, new WaterTile(0, 0));
+// map.set(5, 5, new WaterTile(5, 5));
+// map.set(2, 2, new WaterTile(2, 2));
+// map.set(3, 3, new WaterTile(3, 3));
 
 // ===== LOOP =====
 let last=0;
@@ -609,16 +618,45 @@ canvas.addEventListener('contextmenu', e => {
 
 
 document.querySelector('.test').addEventListener('click', e => {
+  var wx = Math.floor(Math.random() * 6)
+  var wy = Math.floor(Math.random() * 6)
+
   map.tiles.forEach((row, y) => {
     row.forEach((tile, x) => {
-      if (tile instanceof EmptyTile) {
-        setTimeout(() => {
-          if (map.tiles[y][x] instanceof EmptyTile && playerInventory.seeds > 0) {
-            map.set(x, y, new WeedTile(x, y));
+      setTimeout(() => {
+        if (map.tiles[y][x] instanceof EmptyTile && playerInventory.seeds > 0) {
+          if (x == wx && y == wy) {
+            map.set(x, y, new WaterTile(5 - y, x));
+          } else if (Math.floor(Math.random() * 12) == 1) {
+            map.set(x, y, new WeedTile(5 - y, x));
             playerInventory.seeds -= 1;
+          } else {
+            map.set(x, y, new EmptyTile(5 - y, x));
           }
-        }, 100 * (x ** 0.67) * (y ** 0.67));
-      }
+
+        }
+      }, 50 * x ** 0.42 * y ** 0.42);
     });
   })
 });
+
+
+document.querySelector('.zero').addEventListener('click', e => {
+  map.tiles.forEach((row, y) => {
+    row.forEach((tile, x) => {
+      setTimeout(() => {
+        map.set(tile.x, tile.y, new EmptyTile(5 - tile.y, 5 - tile.x));
+        playerInventory.seeds = 100;
+        money = 0;
+      }, 50 * x ** 0.42 * y ** 0.42);
+    });
+  })
+});
+
+
+
+var max = 0;
+for (let i = 0; i < 50; i++) {
+  max = Math.max(Math.floor(Math.random() * 6), max);
+}
+console.log(max)
