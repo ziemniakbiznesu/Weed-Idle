@@ -627,11 +627,9 @@ document.querySelector('.test').addEventListener('click', e => {
         if (map.tiles[y][x] instanceof EmptyTile && playerInventory.seeds > 0) {
           if (x == wx && y == wy) {
             map.set(x, y, new WaterTile(5 - y, x));
-          } else if (Math.floor(Math.random() * 12) == 1) {
+          } else {
             map.set(x, y, new WeedTile(5 - y, x));
             playerInventory.seeds -= 1;
-          } else {
-            map.set(x, y, new EmptyTile(5 - y, x));
           }
 
         }
