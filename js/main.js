@@ -17,6 +17,8 @@ var money = 0;
 
 load("empty", "./ziem_plants/empty.png");
 load("seed", "./ziem_plants/seed.png");
+load("dead_0", "./ziem_plants/dead_0.png");
+load("dead_1", "./ziem_plants/dead_1.png");
 
 for (let i = 0; i <= 8; i++) load("weed_"+i, `./ziem_plants/weed_${i}.png`);
 load("sweed_7", "./ziem_plants/sweed_7.png");
@@ -29,7 +31,7 @@ for (let i = 0; i <= 9; i++) load(`number_${i}`, `./numbers/${i}.png`);
 
 class PlayerInventory {
   constructor(){
-    this.seeds = 5;  // np. startowa ilość nasion
+    this.seeds = 100;  // np. startowa ilość nasion
   }
 
   useSeed(){
@@ -98,6 +100,8 @@ class WeedTile extends Tile {
     this.growth=0;
     this.special=false;
     this.sweedActivated = false;
+    this.harvested = false;
+    this.isDead = false;
   }
 
   update(dt, map){
@@ -106,13 +110,19 @@ class WeedTile extends Tile {
     // --- Growth ALWAYS ---
     let boost = map.getWaterBoost(this);
     this.growth += dt * boost;
+
+    if (Math.floor(Math.random() * 4200 * this.level ** 0.42 * boost ** 0.42) == 1) {
+      // map.set(this.x, this.y, new EmptyTile(this.x, this.y));
+      // console.log(boost ** 5)
+      this.isDead = true;
+    }
   
     if(this.stage === "seed" && this.growth > 2){
       this.stage = "growing";
       this.growth = 0;
     }
 
-    if(this.stage === "growing" && this.growth > this.level){  
+    if(this.stage === "growing" && this.growth > (this.level + 2)){  
     // if(this.stage === "growing" && this.growth > 2 + this.level){
       this.level = Math.min(8, this.level + 1);
       this.growth = 0;
@@ -129,10 +139,8 @@ class WeedTile extends Tile {
     }
 
     if (AUTO_HARVEST && this.level == 8) {
-      this.update = () => {};
-
       setTimeout(() => {
-        this.harvest(this);
+        if (!this.harvested) this.harvest(this);
       }, 4200);
     }
   }
@@ -144,8 +152,10 @@ class WeedTile extends Tile {
     if (this.x != other.x 
       || this.y != other.y
       || this.level != 8
+      || this.isDead
       ) return;
-
+      
+    this.harvested = true;
     money += 21 * (this.special ? 2 : 1);
     
     map.set(this.x, this.y, new WeedTile(this.x, this.y));
@@ -163,21 +173,44 @@ class WeedTile extends Tile {
   // }
 
   render(ctx, map){
-    if (map) {
-      let boost = map.getWaterBoost(this);
-      if(boost > map.globalBoost){
-        ctx.strokeStyle = "yellow";
-        ctx.lineWidth = 4;
-        ctx.strokeRect(this.px, this.py, TILE_SIZE, TILE_SIZE);
-      }
-    }
+    // if (map) {
+    //   let boost = map.getWaterBoost(this);
+    //   if(boost > map.globalBoost){
+    //     ctx.strokeStyle = "yellow";
+    //     ctx.lineWidth = 4;
+    //     ctx.strokeRect(this.px, this.py, TILE_SIZE, TILE_SIZE);
+    //   }
+    // }
+    
   
     let sprite;
     if(this.stage==="seed") sprite = SPRITES.seed;
+    else if (this.isDead) sprite = SPRITES[`dead_${(Math.sin(this.x * 374761393 + this.y * 668265263) * 43758.5453 % 1) < 0.5 ? 0 : 1}`];
     else if(this.special) sprite = SPRITES["sweed_"+this.level];
     else sprite = SPRITES["weed_"+this.level];
   
+    ctx.save();
+
+    if (map && !this.isDead) {
+      let boost = map.getWaterBoost(this);
+      if(boost > map.globalBoost){
+        // console.log(boost **4)
+        // ctx.shadowColor = `rgba(155, 155, 255, ${0.6 * boost ** 4})`;
+        // ctx.shadowBlur = 42;
+        ctx.filter = "brightness(1.1) saturate(1.1)";
+      }
+    } 
+    
+    if (this.isDead) {
+      // ctx.shadowColor = "rgba(155, 155, 255, 0.8)";
+      // ctx.shadowBlur = 25;
+      ctx.filter = "brightness(0.9) saturate(0.8)";
+    }
+
     this.draw(ctx, sprite);
+    ctx.restore();
+
+    if (this.isDead) return;
 
     let numer_sprite = SPRITES[`number_${this.level + 1}`];
     
@@ -185,7 +218,6 @@ class WeedTile extends Tile {
     const py = this.py + TILE_SIZE * 0.8;
   
     const size = TILE_SIZE * 0.16;
-  
     ctx.fillStyle = '#121212';
     ctx.fillRect(px - 3, py - 3, size + 6, size + 6);
     ctx.fillStyle = '#fafafa';
@@ -197,14 +229,13 @@ class WeedTile extends Tile {
 
 // ===== WATER =====
 class WaterTile extends Tile {
-  constructor(x,y){
-    super(x,y);
-    this.level=0;
+  constructor(x, y){
+    super(x, y);
+    this.level = 4;
   }
 
-  getBoost(){
-    if(this.level<=3) return (this.level+1)*0.25;
-    return 0;
+  getBoost() {
+    return 1 + (this.level + 1) * 0.1;
   }
 
   isGlobal(){
@@ -327,9 +358,12 @@ class GameMap {
   getWaterBoost(t){
     let boost=this.globalBoost;
 
-    for(let n of this.getNeighbors(t)){
-      if(n instanceof WaterTile) boost+=n.getBoost();
+    for (let n of this.getNeighbors(t)) {
+      if (n instanceof WaterTile) boost *= n.getBoost();
     }
+    // for(let n of this.getNeighbors(t)){
+    //   if(n instanceof WaterTile) boost+=n.getBoost();
+    // }
 
     return boost;
   }
@@ -413,6 +447,13 @@ class GameMap {
 
     // ===== WEED + WEED => CASH =====
     if (target instanceof WeedTile && d instanceof WeedTile) target.harvest(d);
+    if (target instanceof WeedTile && d instanceof WeedTile) {
+      if (target.x == d.x && target.y == d.y && target.isDead) {
+        playerInventory.seeds += 1;
+        money += 1;
+        map.set(target.x, target.y, new EmptyTile(target.x, target.y));
+      }
+    }
 
     // ===== WATER + WATER => UPGRADE ===== 
     if (target instanceof WaterTile && d instanceof WaterTile) {
@@ -443,9 +484,6 @@ class GameMap {
     let x = Math.floor((px - rect.left) / TILE_SIZE);
     let y = Math.floor((py - rect.top) / TILE_SIZE);
   
-    // ❌ NIE CLAMPUJ (to było błędne podejście)
-    // ✔ ZWRÓĆ NULL jak poza mapą
-  
     if(x < 0 || y < 0 || x >= this.size || y >= this.size){
       return null;
     }
@@ -461,9 +499,10 @@ canvas.height=GRID_SIZE*TILE_SIZE;
 
 const ctx=canvas.getContext("2d");
 
-const map=new GameMap(GRID_SIZE);
+const map = new GameMap(GRID_SIZE);
 
 // test
+map.set(0, 0, new WeedTile(0, 0));
 map.set(1, 4, new WeedTile(1, 4));
 map.set(4, 1, new WeedTile(4, 1));
 map.set(0, 0, new WaterTile(0, 0));
@@ -487,6 +526,17 @@ function loop(t){
 
   document.querySelectorAll('.money-ui').forEach(x => x.innerText = money);
   document.querySelectorAll('.seeds-ui').forEach(x => x.innerText = playerInventory.seeds);
+
+  var testcost = 0;
+  map.tiles.forEach((row, y) => {
+    row.forEach((tile, x) => {
+      if (tile instanceof EmptyTile) {
+        testcost += 1;
+      }
+    });
+  })
+
+  document.querySelectorAll('.test-cost-ui').forEach(x => x.innerText = testcost * 420);
 
   
   requestAnimationFrame(loop);
@@ -544,4 +594,31 @@ canvas.addEventListener('touchstart', e => {
   const y = t.clientY - rect.top;
   console.log('a');
   popupManager.handleClick(x, y);
+});
+
+
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+
+  console.log(map.getTileFromPixel(e.x, e.y));
+  console.log('c');
+});
+
+
+
+
+document.querySelector('.test').addEventListener('click', e => {
+  map.tiles.forEach((row, y) => {
+    row.forEach((tile, x) => {
+      if (tile instanceof EmptyTile) {
+        setTimeout(() => {
+          if (map.tiles[y][x] instanceof EmptyTile && playerInventory.seeds > 0) {
+            map.set(x, y, new WeedTile(x, y));
+            playerInventory.seeds -= 1;
+          }
+        }, 100 * (x ** 0.67) * (y ** 0.67));
+      }
+    });
+  })
 });
