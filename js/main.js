@@ -1,7 +1,10 @@
+var canvas_scale = 1;
 const AUTO_HARVEST = true;
 
 var soundManager = new SoundManager();
 soundManager.load('earn', './media/sounds/ean.mp3');
+
+var jackpot = new Jackpot();
 
 // ===== CONFIG =====
 const GRID_SIZE = 6;
@@ -19,6 +22,7 @@ var money = 0;
 
 load("empty", "./ziem_plants/empty.png");
 load("seed", "./ziem_plants/seed.png");
+
 load("dead_0", "./ziem_plants/dead_0.png");
 load("dead_1", "./ziem_plants/dead_1.png");
 
@@ -27,6 +31,10 @@ load("sweed_7", "./ziem_plants/sweed_7.png");
 load("sweed_8", "./ziem_plants/sweed_8.png");
 
 for (let i = 0; i <= 4; i++) load("water_"+i, `./ziem_plants/water_${i}.png`);
+
+load("trimmer_0", "./ziem_plants/trimmer_0.png");
+load("trimmer_1", "./ziem_plants/trimmer_1.png");
+load("trimmer_2", "./ziem_plants/trimmer_2.png");
 
 for (let i = 0; i <= 9; i++) load(`number_${i}`, `./numbers/${i}.png`);
 
@@ -113,7 +121,7 @@ class WeedTile extends Tile {
     let boost = map.getWaterBoost(this);
     this.growth += dt * boost * (Math.floor(Math.random() * 100) / 100 + 0.5);
 
-    if (Math.floor(Math.random() * 4200 * this.level ** 0.42 * boost ** 0.42) == 1) {
+    if (Math.floor(Math.random() * 4200 * this.level ** 0.42 * boost ** 1.42) == 1) {
       // map.set(this.x, this.y, new EmptyTile(this.x, this.y));
       // console.log(boost ** 5)
       this.isDead = true;
@@ -124,7 +132,7 @@ class WeedTile extends Tile {
       this.growth = 0;
     }
 
-    if(this.stage === "growing" && this.growth > (this.level + 2)){  
+    if(this.stage === "growing" && this.growth > (this.level + 4)){  
     // if(this.stage === "growing" && this.growth > 2 + this.level){
       this.level = Math.min(8, this.level + 1);
       this.growth = 0;
@@ -249,10 +257,16 @@ class WaterTile extends Tile {
     return this.level===4;
   }
 
-  canMerge = other => {
+  canMerge = (other) => {
     console.log("CAN MERGE?");
-    var can = other instanceof WaterTile && this.level < 4 && other.level < 4 && !(this.x == other.x && this.y == other.y);
+
+    var can = (other instanceof WaterTile) 
+      && this.level < 4 && other.level < 4 
+      && !(this.x == other.x && this.y == other.y) 
+      && (this.level == other.level);
+
     console.log(can);
+    console.log(this.level, other.level);
     return can;
   };
 
@@ -278,7 +292,7 @@ class WaterTile extends Tile {
   
     ctx.fillStyle = '#121212';
     ctx.fillRect(px - 3, py - 3, size + 6, size + 6);
-    ctx.fillStyle = '#fafafa';
+    ctx.fillStyle = this.level == 4 ? '#f9f295' : '#fafafa';
     ctx.fillRect(px - 2, py - 2, size + 4, size + 4);
     ctx.drawImage(numer_sprite, px + 1, py + 1, size - 2, size - 2);
   }
@@ -291,34 +305,53 @@ class TrimmerTile extends Tile {
     this.level=0;
   }
 
-  getBoost(){
-    if(this.level<=3) return (this.level+1)*0.25;
-    return 0;
-  }
+  // getBoost(){
+  //   if(this.level<=3) return (this.level+1)*0.25;
+  //   return 0;
+  // }
 
-  isGlobal(){
-    return this.level===4;
-  }
+  // isGlobal(){
+  //   return this.level===4;
+  // }
 
-  canMerge = other => {
+  canMerge = (other) => {
     console.log("CAN MERGE?");
-    var can = other instanceof WaterTile && this.level < 4 && other.level < 4 && !(this.x == other.x && this.y == other.y);
+
+    var can = (other instanceof TrimmerTile) 
+      && this.level < 2 && other.level < 2 
+      && !(this.x == other.x && this.y == other.y) 
+      && (this.level == other.level);
+
     console.log(can);
+    console.log(this.level, other.level);
     return can;
   };
 
   merge(){
     console.log(this.level);
-    var water = new WaterTile(this.x, this.y);
-    water.level = Math.min(4, this.level + 1);
-    map.set(this.x, this.y, water);
-    console.log(water.level);
+    var trimmer = new TrimmerTile(this.x, this.y);
+    trimmer.level = Math.min(2, this.level + 1);
+    map.set(this.x, this.y, trimmer);
+    // console.log(water.level);
 
     setTimeout(()=>this.targetScale=1,100);
   }
 
   render(ctx){
-    this.draw(ctx, SPRITES["water_"+this.level]);
+    this.draw(ctx, SPRITES["trimmer_"+this.level]);
+
+    let numer_sprite = SPRITES[`number_${this.level + 1}`];
+    
+    const px = this.px + TILE_SIZE * 0.8;
+    const py = this.py + TILE_SIZE * 0.8;
+  
+    const size = TILE_SIZE * 0.16;
+  
+    ctx.fillStyle = '#121212';
+    ctx.fillRect(px - 3, py - 3, size + 6, size + 6);
+    ctx.fillStyle = this.level > 1 ? '#f9f295' : '#fafafa';
+    ctx.fillRect(px - 2, py - 2, size + 4, size + 4);
+    ctx.drawImage(numer_sprite, px + 1, py + 1, size - 2, size - 2);
   }
 }
 
@@ -460,14 +493,22 @@ class GameMap {
       if (target.x == d.x && target.y == d.y && target.isDead) {
         playerInventory.seeds += 2;
         money += 1;
-        map.set(target.x, target.y, new WaterTile(target.x, target.y));
+        map.set(target.x, target.y, new TrimmerTile(target.x, target.y));
+        
+        // map.set(target.x, target.y, Math.floor(Math.random() * 2) == 0 ? new WaterTile(target.x, target.y) : new TrimmerTile(target.x, target.y));
       }
     }
 
-    // ===== WATER + WATER => UPGRADE ===== 
-    if (target instanceof WaterTile && d instanceof WaterTile) {
+    // ===== WEED + WEED => FASTER GROWTH =====
+    if (target instanceof WeedTile && target.x == d.x && target.y == d.y) {
+      target.growth += 1;
+    }
+
+    // ===== WATER + WATER => UPGRADE ===== //// OR TRIMMER
+    if ((target instanceof WaterTile && d instanceof WaterTile) || (target instanceof TrimmerTile && d instanceof TrimmerTile)) {
       if (target.canMerge(d)) {
         console.log(d)
+        console.log(target)
         this.set(d.x, d.y, new EmptyTile(d.x, d.y));
         target.merge(d);
         this.dragged = null;
@@ -475,9 +516,32 @@ class GameMap {
         return;
       }
     }
-    
+
+    // ===== TRIMMER -> ANY WEED => MONEY =====
+    if (target instanceof WeedTile && d instanceof TrimmerTile && d.level > 1) {
+      var i = 0;
+      var grow_loop = (x) => {
+        target.growth++;
+
+        setTimeout(() => {
+            if (target.level < 8) {
+              grow_loop(++x);
+            } else {
+              target.level = 8;
+              target.harvest(target);
+            }
+        }, 2 * x + 20);
+      };
+
+      grow_loop(1);
+
+      map.dragged = null;
+      // this.set(target.x, target.y, new TrimmerTile(target.x, target.y));
+      this.set(d.x, d.y, new WaterTile(d.x, d.y));
+    }
 
     // ===== WATER SWAP =====
+    if (d instanceof TrimmerTile && d.level > 1 && target instanceof WeedTile && !target.isDead) return;
     const dx = d.x, dy = d.y;
     const tx = target.x, ty = target.y;
     const temp = this.tiles[ty][tx];
@@ -522,16 +586,24 @@ const map = new GameMap(GRID_SIZE);
 // ===== LOOP =====
 let last=0;
 function loop(t){
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
+  // canvas_scale = Math.min(innerWidth / 1920, innerHeight / 1080);
+
+  canvas.width = 726;
+  canvas.height = 786;
+
+
   const dt=(t-last)/1000;
   last=t;
 
   map.update(dt);
   popupManager.update(ctx);
+  // jackpot.update(dt, map);
+  // ctx.scale(canvas_scale, canvas_scale);
   
   map.render(ctx);
   popupManager.draw(ctx);
+  // jackpot.render(ctx, map);
+
 
   document.querySelectorAll('.money-ui').forEach(x => x.innerText = money);
   document.querySelectorAll('.seeds-ui').forEach(x => x.innerText = playerInventory.seeds);
@@ -554,24 +626,30 @@ requestAnimationFrame(loop);
 
 // ===== INPUT =====
 canvas.addEventListener("mousedown",e=>{
-  map.startDrag(e.offsetX,e.offsetY);
+  let rect = canvas.getBoundingClientRect();
+  map.startDrag(e.offsetX + rect.left,e.offsetY + rect.top);
 });
+
 canvas.addEventListener("mouseup",e=>{
-  map.endDrag(e.offsetX,e.offsetY);
+  let rect = canvas.getBoundingClientRect();
+  map.endDrag(e.offsetX + rect.left, e.offsetY + rect.top);
 });
 
 canvas.addEventListener("touchstart",e=>{
   e.preventDefault();
   const t=e.touches[0];
-  map.startDrag(t.clientX,t.clientY);
+  let rect = canvas.getBoundingClientRect();
+  map.startDrag(e.offsetX + rect.left,e.offsetX + rect.top);
 },{passive:false});
 
-addEventListener("touchend",e=>{
+canvas.addEventListener("touchend",e=>{
   const t=e.changedTouches[0];
-  map.endDrag(t.clientX,t.clientY);
+  let rect = canvas.getBoundingClientRect();
+  map.endDrag(e.offsetX + rect.left,e.offsetX + rect.top);
 });
 
 canvas.addEventListener("mousemove", e=>{
+  let rect = canvas.getBoundingClientRect();
   if(map.dragged){
     map.dragged.px = e.offsetX - TILE_SIZE/2;
     map.dragged.py = e.offsetY - TILE_SIZE/2;
@@ -579,11 +657,12 @@ canvas.addEventListener("mousemove", e=>{
 });
 
 canvas.addEventListener("touchmove", e=>{
+  let rect = canvas.getBoundingClientRect();
   const t=e.changedTouches[0];
 
   if(map.dragged){
-    map.dragged.px = t.clientX - TILE_SIZE/2;
-    map.dragged.py = t.clientY - TILE_SIZE/2;
+    map.dragged.px = t.clientX - TILE_SIZE/2 + rect.left;
+    map.dragged.py = t.clientY - TILE_SIZE/2 + rect.top;
   }
 });
 
@@ -618,8 +697,15 @@ canvas.addEventListener('contextmenu', e => {
 
 
 document.querySelector('.test').addEventListener('click', e => {
-  var wx = Math.floor(Math.random() * 6)
-  var wy = Math.floor(Math.random() * 6)
+  var wx, wy, tx, ty;
+  wx = Math.floor(Math.random() * 6)
+  wy = Math.floor(Math.random() * 6)
+  tx = Math.floor(Math.random() * 6)
+  ty = Math.floor(Math.random() * 6)
+  
+  // do {
+  // }
+  // while(!(map.tiles[wy][wx] instanceof EmptyTile));
 
   map.tiles.forEach((row, y) => {
     row.forEach((tile, x) => {
@@ -627,6 +713,8 @@ document.querySelector('.test').addEventListener('click', e => {
         if (map.tiles[y][x] instanceof EmptyTile && playerInventory.seeds > 0) {
           if (x == wx && y == wy) {
             map.set(x, y, new WaterTile(5 - y, x));
+          } else if (x == tx && y == ty) {
+            map.set(x, y, new TrimmerTile(5 - y, x));
           } else {
             map.set(x, y, new WeedTile(5 - y, x));
             playerInventory.seeds -= 1;
@@ -648,8 +736,33 @@ document.querySelector('.zero').addEventListener('click', e => {
         money = 0;
       }, 50 * x ** 0.42 * y ** 0.42);
     });
-  })
+  });
+
+  jackpot.time = 0;
 });
+
+
+// document.querySelector('.zero').addEventListener('click', e => {
+//   map.tiles.forEach((row, y) => {
+//     row.forEach((tile, x) => {
+//       if ((x % 2 == 0 && y % 2 == 0) || (x % 2 == 1 && y % 2 == 1)) return;
+//       setTimeout(() => {
+//         map.set(tile.x, tile.y, new EmptyTile(tile.x, tile.y));
+//         playerInventory.seeds = 100;
+//         money = 0;
+//       }, 240 - 40 * x);
+//     });
+
+//     row.forEach((tile, x) => {
+//       if ((x % 2 == 0 && y % 2 == 1) || (x % 2 == 1 && y % 2 == 0)) return;
+//       setTimeout(() => {
+//         map.set(tile.x, tile.y, new EmptyTile(tile.x, tile.y));
+//         playerInventory.seeds = 100;
+//         money = 0;
+//       }, 40 * y + 80);
+//     });
+//   })
+// });
 
 
 

@@ -1,1 +1,1 @@
-*{margin:0;padding:0;box-sizing:border-box;-webkit-user-drag:none}body{width:100vw;height:100vh;overflow:hidden;user-select:none}canvas{position:fixed;top:50px}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-drag:none}body{width:100vw;height:100vh;overflow:hidden;user-select:none;background-image:url("../media/img/background.png")}canvas{position:fixed;backdrop-filter:blur(0.42rem);background-color:rgba(255,255,255,0.42);border-radius:1.42rem;box-shadow:0 0 2rem 3rem rgba(255,255,255,0.42);position:fixed;top:50%;left:50%;transform:translate(-50%, -50%)}

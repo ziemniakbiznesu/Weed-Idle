@@ -14,10 +14,20 @@ body {
     overflow: hidden;
 
     user-select: none;
+    background-image: url('../media/img/background.png');
 }
 
 
 canvas {
     position: fixed;
-    top: 50px;
+    // top: 50px;
+    // border: 1px solid red;
+    backdrop-filter: blur(0.42rem);
+    background-color: rgba(255, 255, 255, 0.42);
+    border-radius: 1.42rem;
+    box-shadow: 0 0 2rem 3rem rgba(255, 255, 255, 0.42);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
